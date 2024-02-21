@@ -1,3 +1,4 @@
+import winim/inc/psapi
 import winim/[lean, winstr, utils]
 import std/[strformat, strutils]
 import osproc
@@ -23,17 +24,6 @@ proc err(msg: string, get_err = true) =
     else:
         echo(fmt"[!] {msg}")
     quit(QuitFailure)
-
-type MODULEINFO = object
-    lpBaseOfDll: LPVOID
-    SizeOfImage: DWORD
-    EntryPoint: LPVOID
-
-type
-    LPMODULEINFO = ptr MODULEINFO
-
-proc K32GetModuleInformation(hProcess: HANDLE, hModule: HMODULE, lpmodinfo: LPMODULEINFO, cb: DWORD): BOOL
-  {.discardable, stdcall, dynlib: "kernel32.dll", importc.}
 
 type ParsedPE = object
     base_addr: QWORD
@@ -76,7 +66,7 @@ proc get_unhook_ntdll(): seq[byte] =
     var modinfo: MODULEINFO
     var hCurr = GetCurrentProcess()
     defer: CloseHandle(hCurr)
-    var ret = K32GetModuleInformation(hCurr, hNtDll, addr modinfo, cast[DWORD](sizeof(modinfo)))
+    var ret = GetModuleInformation(hCurr, hNtDll, addr modinfo, cast[DWORD](sizeof(modinfo)))
     if ret == 0:
         echo("[+] Killing dummy process")
         dummy_proc.terminate()
@@ -92,8 +82,6 @@ proc get_unhook_ntdll(): seq[byte] =
         dummy_proc.close()
         err("ReadProcessMemory")
     return buffer
-
-
 
 proc main() =
     echo("[+] Getting unhook ntdll from suspended process")
